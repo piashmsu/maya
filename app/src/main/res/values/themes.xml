@@ -7,7 +7,6 @@
         <item name="colorSecondary">@color/myra_purple</item>
         <item name="colorSecondaryVariant">@color/myra_purple_light</item>
         <item name="colorOnSecondary">@color/myra_text_primary</item>
-        <item name="colorBackground">@color/myra_bg</item>
         <item name="android:colorBackground">@color/myra_bg</item>
         <item name="android:windowBackground">@color/myra_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

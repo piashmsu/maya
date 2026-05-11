@@ -36,7 +36,7 @@ class MyraOverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startMyraForeground(NOTIFICATION_ID, buildNotification())
         windowManager = getSystemService(WINDOW_SERVICE) as? WindowManager
     }
 
@@ -54,8 +54,8 @@ class MyraOverlayService : Service() {
         super.onDestroy()
     }
 
-    private fun startForeground(id: Int, notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    private fun startMyraForeground(id: Int, notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
             startForeground(id, notification)
