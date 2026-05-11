@@ -37,10 +37,7 @@ class OrbAnimationView @JvmOverloads constructor(
     enum class State { IDLE, LISTENING, SPEAKING, THINKING }
 
     private var currentState = State.IDLE
-    private var amplitude = 0f
-        set(value) {
-            field = value.coerceIn(0f, 1f)
-        }
+    private var amplitudeValue = 0f
 
     // Animators ------------------------------------------------------------
 
@@ -118,7 +115,7 @@ class OrbAnimationView @JvmOverloads constructor(
     }
 
     fun setAmplitude(rms: Float) {
-        amplitude = rms
+        amplitudeValue = rms.coerceIn(0f, 1f)
         invalidate()
     }
 
@@ -138,7 +135,7 @@ class OrbAnimationView @JvmOverloads constructor(
         val cy = height / 2f
         val baseRadius = min(width, height) / 2f * 0.55f
         val pulseScale = pulseAnimator.animatedValue as? Float ?: 1f
-        val coreRadius = baseRadius * pulseScale * (1f + amplitude * 0.06f)
+        val coreRadius = baseRadius * pulseScale * (1f + amplitudeValue * 0.06f)
 
         drawGlow(canvas, cx, cy, coreRadius * 1.6f)
         drawCore(canvas, cx, cy, coreRadius)
@@ -207,7 +204,7 @@ class OrbAnimationView @JvmOverloads constructor(
     private fun drawWaveRings(canvas: Canvas, cx: Float, cy: Float, radius: Float) {
         val (inner, outer) = colorsForState()
         val waveOffset = waveAnimator.animatedValue as? Float ?: 0f
-        val amp = 6f + amplitude * 22f + (if (currentState == State.SPEAKING) 6f else 0f)
+        val amp = 6f + amplitudeValue * 22f + (if (currentState == State.SPEAKING) 6f else 0f)
         for (ring in 0 until 3) {
             val r0 = radius * (1.0f + 0.12f * ring)
             wavePaint.color = blend(inner, outer, ring / 3f).withAlpha(170 - ring * 40)

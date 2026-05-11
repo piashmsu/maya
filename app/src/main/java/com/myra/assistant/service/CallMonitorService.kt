@@ -36,7 +36,7 @@ class CallMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startMyraForeground(NOTIFICATION_ID, buildNotification())
         tm = ContextCompat.getSystemService(this, TelephonyManager::class.java)
         registerListener()
     }
@@ -51,8 +51,8 @@ class CallMonitorService : Service() {
         super.onDestroy()
     }
 
-    private fun startForeground(id: Int, notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+    private fun startMyraForeground(id: Int, notification: Notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
         } else {
             startForeground(id, notification)
