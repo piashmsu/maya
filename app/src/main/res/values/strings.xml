@@ -42,6 +42,20 @@
     <string name="notif_channel_call">Call Monitor</string>
     <string name="notif_overlay_text">MYRA orb is active</string>
     <string name="notif_call_text">Listening for incoming calls</string>
+    <string name="notif_wake_title">MYRA wake word active</string>
+    <string name="notif_wake_text">Listening for \u201cHey MYRA\u201d</string>
 
     <string name="close_overlay">Close MYRA orb</string>
+
+    <string name="settings_language">Language</string>
+    <string name="settings_features">Features</string>
+    <string name="settings_wake_word">Wake word \u2014 \u201cHey MYRA\u201d</string>
+    <string name="settings_wake_word_hint">Continuously listens; needs mic permission + battery whitelist (use Auto Setup).</string>
+    <string name="settings_notif_reader">Read notifications aloud</string>
+    <string name="settings_notif_reader_hint">WhatsApp / SMS / Telegram / Instagram / Gmail / Messenger.</string>
+    <string name="settings_clear_history">Clear chat history</string>
+    <string name="settings_auto_setup">\u26A1 AUTO SETUP (ROOT)</string>
+    <string name="settings_auto_setup_running">Running root setup\u2026</string>
+    <string name="settings_auto_setup_no_root">su not available \u2014 root required for one-tap setup.</string>
+    <string name="vision_capture">Capture photo for MYRA to describe</string>
 </resources>

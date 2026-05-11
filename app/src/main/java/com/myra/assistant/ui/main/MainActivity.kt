@@ -31,13 +31,26 @@ import com.myra.assistant.R
 import com.myra.assistant.ai.AudioEngine
 import com.myra.assistant.ai.CommandParser
 import com.myra.assistant.ai.GeminiLiveClient
+import com.myra.assistant.ai.GeminiVisionClient
 import com.myra.assistant.ai.SystemPrompts
+import com.myra.assistant.data.ChatHistory
 import com.myra.assistant.data.Prefs
 import com.myra.assistant.service.AccessibilityHelperService
 import com.myra.assistant.service.CallMonitorService
+import com.myra.assistant.service.MyraNotificationListener
 import com.myra.assistant.service.MyraOverlayService
+import com.myra.assistant.service.WakeWordService
 import com.myra.assistant.ui.settings.SettingsActivity
 import com.myra.assistant.viewmodel.MainViewModel
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,6 +59,7 @@ class MainActivity : AppCompatActivity() {
 
     private val viewModel: MainViewModel by viewModels()
     private val prefs by lazy { Prefs(this) }
+    private val chatHistory by lazy { ChatHistory(this) }
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private lateinit var orbView: OrbAnimationView
@@ -59,7 +73,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var micButton: ImageButton
     private lateinit var settingsBtn: ImageButton
     private lateinit var redOverlay: View
+    private lateinit var cameraBtn: ImageButton
     private val chatAdapter = ChatAdapter()
+
+    private val cameraLauncher =
+        registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+            if (bitmap != null) processVisionCapture(bitmap)
+        }
 
     private var geminiLive: GeminiLiveClient? = null
     private var audioEngine: AudioEngine? = null
@@ -79,10 +99,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val notificationReadReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val spoken = intent?.getStringExtra(MyraNotificationListener.EXTRA_SPOKEN)
+                ?: return
+            speakNotification(spoken)
+        }
+    }
+
     private val resultObserver = androidx.lifecycle.Observer<String?> { text ->
         if (text.isNullOrBlank()) return@Observer
-        chatAdapter.submit(ChatMessage("MYRA: $text", isUser = false))
-        chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
+        addChatMessage(ChatMessage("MYRA: $text", isUser = false))
         geminiLive?.sendText("(Phone action result: $text)")
         viewModel.clearResult()
     }
@@ -91,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         initViews()
+        loadChatHistory()
         viewModel.commandResult.observe(this, resultObserver)
         checkPermissions()
         startSystemServices()
@@ -99,6 +127,12 @@ class MainActivity : AppCompatActivity() {
             this,
             callEndedReceiver,
             IntentFilter(CallMonitorService.ACTION_CALL_ENDED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        ContextCompat.registerReceiver(
+            this,
+            notificationReadReceiver,
+            IntentFilter(MyraNotificationListener.ACTION_READ_NOTIFICATION),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         mainHandler.postDelayed({ initGeminiLive() }, 300L)
@@ -124,6 +158,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         statusRunnable?.let { mainHandler.removeCallbacks(it) }
         runCatching { unregisterReceiver(callEndedReceiver) }
+        runCatching { unregisterReceiver(notificationReadReceiver) }
         geminiLive?.disconnect()
         audioEngine?.release()
     }
@@ -141,6 +176,7 @@ class MainActivity : AppCompatActivity() {
         chatRecycler = findViewById(R.id.chatRecycler)
         micButton = findViewById(R.id.micButton)
         settingsBtn = findViewById(R.id.settingsBtn)
+        cameraBtn = findViewById(R.id.cameraBtn)
         redOverlay = findViewById(R.id.redOverlay)
 
         chatRecycler.layoutManager = LinearLayoutManager(this).apply {
@@ -151,6 +187,7 @@ class MainActivity : AppCompatActivity() {
         settingsBtn.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
+        cameraBtn.setOnClickListener { launchVisionCapture() }
         micButton.setOnClickListener { toggleMute() }
         micButton.setOnLongClickListener {
             micLongPressed = true
@@ -199,6 +236,9 @@ class MainActivity : AppCompatActivity() {
             MyraOverlayService.show(this)
         }
         CallMonitorService.start(this)
+        if (prefs.wakeWordEnabled && !WakeWordService.isRunning) {
+            WakeWordService.start(this)
+        }
     }
 
     private fun startStatusUpdates() {
@@ -288,7 +328,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendGreeting() {
-        val greeting = SystemPrompts.greeting(prefs.personality, prefs.userName)
+        val greeting = SystemPrompts.greeting(prefs.personality, prefs.userName, prefs.language)
         geminiLive?.sendText(greeting)
     }
 
@@ -298,13 +338,85 @@ class MainActivity : AppCompatActivity() {
         inputBuffer.setLength(0)
         outputBuffer.setLength(0)
         if (userText.isNotEmpty()) {
-            chatAdapter.submit(ChatMessage(userText, isUser = true))
+            addChatMessage(ChatMessage(userText, isUser = true))
             handleUserCommand(userText)
         }
         if (myraText.isNotEmpty() && myraText != chatAdapter.lastMyraText()) {
-            chatAdapter.submit(ChatMessage(myraText, isUser = false))
+            addChatMessage(ChatMessage(myraText, isUser = false))
         }
+    }
+
+    private fun loadChatHistory() {
+        val history = chatHistory.load()
+        if (history.isEmpty()) return
+        history.forEach { chatAdapter.submit(it) }
         chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
+    }
+
+    private fun addChatMessage(message: ChatMessage) {
+        chatAdapter.submit(message)
+        chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
+        chatHistory.append(message)
+    }
+
+    // -- Notification reader ----------------------------------------------
+
+    private fun speakNotification(spoken: String) {
+        if (geminiLive?.isOpen() != true) return
+        geminiLive?.sendText("(Read this notification out loud to the user, in their language: \"$spoken\")")
+        addChatMessage(ChatMessage("\uD83D\uDD14 $spoken", isUser = false))
+    }
+
+    // -- Vision mode -------------------------------------------------------
+
+    private fun launchVisionCapture() {
+        if (prefs.apiKey.isBlank()) {
+            Toast.makeText(this, "Settings mein API key set karo pehle", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                REQUEST_CAMERA,
+            )
+            return
+        }
+        Toast.makeText(this, "Capture karo, MYRA bata degi kya hai", Toast.LENGTH_SHORT).show()
+        cameraLauncher.launch(null)
+    }
+
+    private fun processVisionCapture(bitmap: Bitmap) {
+        statusText.text = getString(R.string.status_thinking)
+        orbView.setOrbState(OrbAnimationView.State.THINKING)
+        addChatMessage(ChatMessage("\uD83D\uDCF8 Picture liya \u2014 MYRA dekh rahi hai...", isUser = true))
+        val client = GeminiVisionClient(prefs.apiKey)
+        val prompt = buildVisionPrompt()
+        lifecycleScope.launch {
+            val reply = withContext(Dispatchers.IO) { client.describe(bitmap, prompt) }
+            orbView.setOrbState(OrbAnimationView.State.LISTENING)
+            statusText.text = getString(R.string.status_listening)
+            if (reply == null) {
+                Toast.makeText(this@MainActivity, "Vision call fail \u2014 check API key", Toast.LENGTH_LONG).show()
+                return@launch
+            }
+            addChatMessage(ChatMessage("MYRA: $reply", isUser = false))
+            // Speak via live audio session too.
+            geminiLive?.sendText("(Say this aloud, in the user's chosen language, do not change the meaning: \"$reply\")")
+        }
+    }
+
+    private fun buildVisionPrompt(): String = when (prefs.language) {
+        Prefs.LANG_BENGALI ->
+            "Eii chobita dekhe, kothita Bengali te bolo etate ki dekha jachhe. Sangkhipto, 2-3 line, conversational."
+        Prefs.LANG_BENGLISH ->
+            "Look at this image and tell the user what's in it in Benglish (Bengali + English mix). 2-3 lines, conversational."
+        Prefs.LANG_ENGLISH ->
+            "Describe what's in this image in conversational English. Keep it to 2-3 short sentences."
+        else ->
+            "Is image mein kya hai, Hinglish mein bolo. 2-3 line max, conversational."
     }
 
     private fun handleUserCommand(transcript: String) {
@@ -398,5 +510,6 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         private const val REQUEST_PERMISSIONS = 1009
+        private const val REQUEST_CAMERA = 1010
     }
 }
