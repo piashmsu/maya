@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="myra_bg">#FF050505</color>
+    <color name="myra_card">#FF111111</color>
+    <color name="myra_card_prime">#FF1A0000</color>
+    <color name="myra_red">#FFFF1744</color>
+    <color name="myra_red_dim">#FFB71C1C</color>
+    <color name="myra_red_deep">#FF880E4F</color>
+    <color name="myra_red_soft">#FFFF6D6D</color>
+    <color name="myra_purple">#FFD500F9</color>
+    <color name="myra_purple_light">#FFE040FB</color>
+    <color name="myra_cyan">#FF40C4FF</color>
+    <color name="myra_cyan_deep">#FF00B0FF</color>
+    <color name="myra_text_primary">#FFEEEEEE</color>
+    <color name="myra_text_secondary">#FFAAAAAA</color>
+    <color name="myra_text_hint">#FF555555</color>
+    <color name="myra_success">#FF00E676</color>
+    <color name="myra_overlay">#FFFF1744</color>
+    <color name="transparent">#00000000</color>
+</resources>
