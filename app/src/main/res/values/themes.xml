@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Myra" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/myra_red</item>
+        <item name="colorPrimaryVariant">@color/myra_red_dim</item>
+        <item name="colorOnPrimary">@color/myra_text_primary</item>
+        <item name="colorSecondary">@color/myra_purple</item>
+        <item name="colorSecondaryVariant">@color/myra_purple_light</item>
+        <item name="colorOnSecondary">@color/myra_text_primary</item>
+        <item name="colorBackground">@color/myra_bg</item>
+        <item name="android:colorBackground">@color/myra_bg</item>
+        <item name="android:windowBackground">@color/myra_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@color/myra_bg</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:textColor">@color/myra_text_primary</item>
+        <item name="android:textColorPrimary">@color/myra_text_primary</item>
+        <item name="android:textColorSecondary">@color/myra_text_secondary</item>
+        <item name="android:textColorHint">@color/myra_text_hint</item>
+    </style>
+
+    <style name="Theme.Myra.Dialog" parent="Theme.MaterialComponents.Dialog.Alert">
+        <item name="colorPrimary">@color/myra_red</item>
+        <item name="android:textColor">@color/myra_text_primary</item>
+        <item name="android:windowBackground">@color/myra_card</item>
+    </style>
+</resources>

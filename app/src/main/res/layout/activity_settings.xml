@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/myra_bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textColor="@color/myra_red"
+            android:textStyle="bold"
+            android:textSize="22sp"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.3"
+            android:text="@string/settings_title" />
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:cardBackgroundColor="@color/myra_card"
+            android:cardCornerRadius="16dp"
+            android:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_api_key" />
+
+                <EditText
+                    android:id="@+id/apiKeyInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_field"
+                    android:padding="12dp"
+                    android:hint="AIza…"
+                    android:inputType="textPassword"
+                    android:textColor="@color/myra_text_primary"
+                    android:textColorHint="@color/myra_text_hint"
+                    android:autofillHints="password"
+                    android:importantForAutofill="no" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_user_name" />
+
+                <EditText
+                    android:id="@+id/nameInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_field"
+                    android:padding="12dp"
+                    android:hint="Your name"
+                    android:inputType="textCapWords"
+                    android:textColor="@color/myra_text_primary"
+                    android:textColorHint="@color/myra_text_hint"
+                    android:autofillHints="name"
+                    android:importantForAutofill="no" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_model" />
+
+                <Spinner
+                    android:id="@+id/modelSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_field" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_voice" />
+
+                <Spinner
+                    android:id="@+id/voiceSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_input_field" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_personality" />
+
+                <RadioGroup
+                    android:id="@+id/personalityGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/personalityGf"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:buttonTint="@color/myra_red"
+                        android:textColor="@color/myra_text_primary"
+                        android:text="@string/personality_gf" />
+
+                    <RadioButton
+                        android:id="@+id/personalityPro"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:buttonTint="@color/myra_red"
+                        android:textColor="@color/myra_text_primary"
+                        android:text="@string/personality_pro" />
+
+                    <RadioButton
+                        android:id="@+id/personalityAssistant"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:buttonTint="@color/myra_red"
+                        android:textColor="@color/myra_text_primary"
+                        android:text="@string/personality_assistant" />
+                </RadioGroup>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:cardBackgroundColor="@color/myra_card_prime"
+            android:cardCornerRadius="16dp"
+            android:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/myra_red"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.15"
+                    android:text="@string/settings_prime_contacts" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/primeRecycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" />
+
+                <Button
+                    android:id="@+id/addPrimeButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_save_button"
+                    android:textColor="@color/myra_text_primary"
+                    android:textStyle="bold"
+                    android:text="@string/settings_add_prime" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:cardBackgroundColor="@color/myra_card"
+            android:cardCornerRadius="16dp"
+            android:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/myra_text_primary"
+                    android:textSize="13sp"
+                    android:text="@string/settings_accessibility_status" />
+
+                <TextView
+                    android:id="@+id/accessibilityText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:padding="8dp"
+                    android:textColor="@color/myra_success"
+                    android:textSize="13sp"
+                    android:text="@string/settings_accessibility_off" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <Button
+            android:id="@+id/saveButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/bg_save_button"
+            android:textColor="@color/myra_text_primary"
+            android:textStyle="bold"
+            android:text="@string/settings_save" />
+    </LinearLayout>
+</ScrollView>

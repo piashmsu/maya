@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <EditText
+        android:id="@+id/dialogNameInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_input_field"
+        android:padding="12dp"
+        android:hint="@string/dialog_prime_name"
+        android:inputType="textCapWords"
+        android:textColor="@color/myra_text_primary"
+        android:textColorHint="@color/myra_text_hint"
+        android:autofillHints="name"
+        android:importantForAutofill="no" />
+
+    <EditText
+        android:id="@+id/dialogNumberInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input_field"
+        android:padding="12dp"
+        android:hint="@string/dialog_prime_number"
+        android:inputType="phone"
+        android:textColor="@color/myra_text_primary"
+        android:textColorHint="@color/myra_text_hint"
+        android:autofillHints="phone"
+        android:importantForAutofill="no" />
+</LinearLayout>
