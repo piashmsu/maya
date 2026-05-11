@@ -1,0 +1,37 @@
+# Android / Java / Kotlin
+*.iml
+.gradle/
+.kotlin/
+local.properties
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+bin/
+gen/
+out/
+build/
+release/
+debug/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Log files
+*.log
+
+# Secrets
+.env
+.env.local
+*.secret
+
+# IDE
+*.swp
+*.swo
