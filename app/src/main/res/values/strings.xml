@@ -61,6 +61,7 @@
 
     <!-- v3 "Always-on" -->
     <string name="notif_bluetooth_text">Bluetooth double-tap ready</string>
+    <string name="notif_voice_text">MYRA voice session active \u2014 listening anywhere</string>
     <string name="notif_in_call_text">Listening for \u201cMYRA help\u201d during this call</string>
     <string name="overlay_quick_chat_title">QUICK CHAT</string>
     <string name="overlay_quick_chat_hint">Type to ask MYRA\u2026</string>

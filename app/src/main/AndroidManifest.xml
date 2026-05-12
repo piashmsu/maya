@@ -30,6 +30,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- v3.1: Background voice + device admin -->
+    <uses-permission android:name="android.permission.BIND_DEVICE_ADMIN"
+        tools:ignore="ProtectedPermissions" />
 
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="true" />
@@ -162,5 +165,25 @@
             android:name=".service.InCallAssistantService"
             android:exported="false"
             android:foregroundServiceType="phoneCall|microphone" />
+
+        <!-- v3.1: long-lived voice session, survives activity teardown -->
+        <service
+            android:name=".service.MyraVoiceService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- v3.1: device administrator (optional, root auto-activates it) -->
+        <receiver
+            android:name=".admin.MyraDeviceAdminReceiver"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

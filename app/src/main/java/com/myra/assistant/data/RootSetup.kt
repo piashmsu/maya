@@ -84,6 +84,11 @@ object RootSetup {
 
             // Best-effort: register as assistant role on Android 10+.
             "cmd role add-role-holder android.app.role.ASSISTANT $pkg",
+
+            // v3.1: silently activate device admin so MYRA can lock the
+            // screen / set keyguard / resist uninstall.
+            "dpm set-active-admin --user 0 " +
+                "$pkg/com.myra.assistant.admin.MyraDeviceAdminReceiver",
         )
         return execCommands(commands)
     }

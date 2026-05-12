@@ -140,6 +140,10 @@ class WakeWordService : android.app.Service() {
         val now = System.currentTimeMillis()
         if (now - lastTriggerMillis < TRIGGER_COOLDOWN_MS) return
         lastTriggerMillis = now
+        // v3.1: ensure the long-lived voice service is alive so MYRA can
+        // hear and answer the user even if they don't bring the activity
+        // to the front (e.g. they said "Hey MYRA" with the screen off).
+        MyraVoiceService.start(this)
         val launch = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
