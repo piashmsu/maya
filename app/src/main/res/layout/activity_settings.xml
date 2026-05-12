@@ -229,6 +229,40 @@
                     android:textSize="11sp"
                     android:text="@string/settings_notif_reader_hint" />
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/bluetoothGestureSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:thumbTint="@color/myra_red"
+                    android:trackTint="@color/myra_red_soft"
+                    android:text="@string/settings_bluetooth_gesture" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/myra_text_hint"
+                    android:textSize="11sp"
+                    android:text="@string/settings_bluetooth_gesture_hint" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/inCallSwitch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:textColor="@color/myra_text_primary"
+                    android:thumbTint="@color/myra_red"
+                    android:trackTint="@color/myra_red_soft"
+                    android:text="@string/settings_in_call" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/myra_text_hint"
+                    android:textSize="11sp"
+                    android:text="@string/settings_in_call_hint" />
+
                 <Button
                     android:id="@+id/clearHistoryButton"
                     android:layout_width="match_parent"

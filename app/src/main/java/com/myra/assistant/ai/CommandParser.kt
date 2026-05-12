@@ -20,20 +20,44 @@ object CommandParser {
         if (t.isEmpty()) return null
         val text = t.lowercase(Locale.ENGLISH)
 
-        // 1. Prime-contact aliases. Matched first so "close friend ko call karo"
-        //    isn't mistakenly mapped to "call <name=close friend>".
+        // 1. "What's on my screen" / "ei screen ta summarise koro" — checked
+        //    first because the words "this" / "screen" can otherwise be picked
+        //    up by the app-name matcher (e.g. "screen" → "screenshot app").
+        screenContextMatch(text, raw)?.let { return it }
+
+        // 2. Prime-contact aliases. Matched before generic "call <name>" so
+        //    "close friend ko call karo" isn't read as call(name="close friend").
         primeMatch(text)?.let { return it }
 
-        // 2. System toggles.
+        // 3. System toggles.
         systemToggle(text)?.let { return it }
 
-        // 3. App open/close.
+        // 4. App open/close.
         openClose(text)?.let { return it }
 
-        // 4. WhatsApp / SMS / call (with target).
+        // 5. WhatsApp / SMS / call (with target).
         comm(text)?.let { return it }
 
         return null
+    }
+
+    // -- Screen context ------------------------------------------------------
+
+    private val SCREEN_TRIGGERS = listOf(
+        "this screen", "ei screen", "is screen", "ye screen", "is page",
+        "screen me kya", "screen e ki", "screen er content",
+        "what is on screen", "what's on screen", "whats on screen",
+        "what does it say", "read this", "summarise this", "summarize this",
+        "summary of this", "translate this", "translate screen",
+        "explain this page", "explain this screen",
+    )
+
+    private fun screenContextMatch(text: String, raw: String): AppCommand? {
+        if (!containsAny(text, *SCREEN_TRIGGERS.toTypedArray())) return null
+        return AppCommand(
+            CommandType.SCREEN_CONTEXT_QUERY,
+            mapOf("query" to raw),
+        )
     }
 
     // -- Prime ---------------------------------------------------------------

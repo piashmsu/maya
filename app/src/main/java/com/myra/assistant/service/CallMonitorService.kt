@@ -104,8 +104,17 @@ class CallMonitorService : Service() {
                 }
                 startActivity(intent)
             }
+            TelephonyManager.CALL_STATE_OFFHOOK -> {
+                // The call is actually connected. Spin up the in-call wake
+                // word listener so "MYRA help" works during the conversation —
+                // but only if the user opted in (it's mic-hungry).
+                if (com.myra.assistant.data.Prefs(this).inCallAssistantEnabled) {
+                    runCatching { InCallAssistantService.start(this) }
+                }
+            }
             TelephonyManager.CALL_STATE_IDLE -> {
                 lastAnnouncedNumber = null
+                runCatching { InCallAssistantService.stop(this) }
                 sendBroadcast(Intent(ACTION_CALL_ENDED).setPackage(packageName))
             }
         }

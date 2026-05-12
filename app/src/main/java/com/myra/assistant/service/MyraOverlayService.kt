@@ -14,6 +14,8 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
+import android.widget.EditText
 import androidx.core.app.NotificationCompat
 import com.myra.assistant.MyraApplication
 import com.myra.assistant.R
@@ -30,6 +32,7 @@ class MyraOverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    private var chatPanelExpanded = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -98,22 +101,75 @@ class MyraOverlayService : Service() {
         val orb = view.findViewById<OrbAnimationView>(R.id.overlayOrb)
         orb.setOrbState(OrbAnimationView.State.IDLE)
 
-        attachDragAndTap(view, params)
+        val head = view.findViewById<View>(R.id.overlayHead)
+        val panel = view.findViewById<View>(R.id.overlayChatPanel)
+
+        attachDragAndTap(view, head, panel, params)
         view.findViewById<View>(R.id.overlayClose).setOnClickListener { hideOrb() }
+
+        view.findViewById<Button>(R.id.overlayOpenMyra).setOnClickListener {
+            openMain()
+            collapsePanel(panel)
+        }
+
+        val input = view.findViewById<EditText>(R.id.overlayChatInput)
+        view.findViewById<Button>(R.id.overlayChatSend).setOnClickListener {
+            val msg = input.text?.toString()?.trim().orEmpty()
+            if (msg.isNotEmpty()) {
+                openMainWithQuery(msg)
+                input.setText("")
+                collapsePanel(panel)
+            }
+        }
 
         wm.addView(view, params)
         overlayView = view
         layoutParams = params
     }
 
+    private fun togglePanel(panel: View) {
+        chatPanelExpanded = !chatPanelExpanded
+        panel.visibility = if (chatPanelExpanded) View.VISIBLE else View.GONE
+        if (chatPanelExpanded) {
+            // When the panel pops open we need keystrokes to reach our EditText —
+            // FLAG_NOT_FOCUSABLE blocks the IME so we briefly drop it.
+            val params = layoutParams ?: return
+            params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+            runCatching { windowManager?.updateViewLayout(panel.rootView, params) }
+        } else {
+            val params = layoutParams ?: return
+            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            runCatching { windowManager?.updateViewLayout(panel.rootView, params) }
+        }
+    }
+
+    private fun collapsePanel(panel: View) {
+        if (!chatPanelExpanded) return
+        togglePanel(panel)
+    }
+
+    private fun openMainWithQuery(query: String) {
+        val intent = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(EXTRA_TEXT_QUERY, query)
+        startActivity(intent)
+    }
+
     @SuppressLint("ClickableViewAccessibility")
-    private fun attachDragAndTap(view: View, params: WindowManager.LayoutParams) {
+    private fun attachDragAndTap(
+        rootView: View,
+        head: View,
+        panel: View,
+        params: WindowManager.LayoutParams,
+    ) {
         var startX = 0
         var startY = 0
         var touchX = 0f
         var touchY = 0f
         var dragged = false
-        view.setOnTouchListener { _, event ->
+        // We only listen on the orb itself so the chat-panel inputs can
+        // still receive their own touch events normally.
+        head.setOnTouchListener { _, event ->
             val wm = windowManager ?: return@setOnTouchListener false
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -130,11 +186,11 @@ class MyraOverlayService : Service() {
                     if (abs(dx) > 8 || abs(dy) > 8) dragged = true
                     params.x = startX + dx
                     params.y = startY + dy
-                    wm.updateViewLayout(view, params)
+                    wm.updateViewLayout(rootView, params)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragged) openMain()
+                    if (!dragged) togglePanel(panel)
                     true
                 }
                 else -> false
@@ -165,6 +221,7 @@ class MyraOverlayService : Service() {
         private const val NOTIFICATION_ID = 4712
         const val ACTION_SHOW_OVERLAY = "com.myra.SHOW_OVERLAY"
         const val ACTION_HIDE_OVERLAY = "com.myra.HIDE_OVERLAY"
+        const val EXTRA_TEXT_QUERY = "myra_text_query"
 
         fun show(context: Context) {
             val i = Intent(context, MyraOverlayService::class.java).setAction(ACTION_SHOW_OVERLAY)
