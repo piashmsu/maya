@@ -30,12 +30,15 @@ object RootSetup {
     }
 
     fun runAll(context: Context): List<StepResult> {
+        // Use the *installed* package id (which may be com.myra.assistant.debug
+        // for debug builds with applicationIdSuffix=".debug"). The class names
+        // never change because they live in the com.myra.assistant.* Kotlin
+        // package regardless of applicationId.
         val pkg = context.packageName
-        val asPkg = "com.myra.assistant"
         val accessibilityComponent =
-            "$asPkg/com.myra.assistant.service.AccessibilityHelperService"
+            "$pkg/com.myra.assistant.service.AccessibilityHelperService"
         val notificationComponent =
-            "$asPkg/com.myra.assistant.service.MyraNotificationListener"
+            "$pkg/com.myra.assistant.service.MyraNotificationListener"
 
         val commands = listOf(
             // Runtime permissions — silently granted only via root/adb.
@@ -55,13 +58,25 @@ object RootSetup {
             "appops set $pkg SYSTEM_ALERT_WINDOW allow",
             "appops set $pkg WRITE_SETTINGS allow",
 
-            // Accessibility service — enable our helper.
-            "settings put secure enabled_accessibility_services $accessibilityComponent",
+            // Accessibility service — append to existing list so we don't
+            // disable other services the user already has on.
+            "cur=$(settings get secure enabled_accessibility_services); " +
+                "case \"\$cur\" in *$accessibilityComponent*) ;; " +
+                "*) if [ -z \"\$cur\" ] || [ \"\$cur\" = \"null\" ]; then " +
+                "settings put secure enabled_accessibility_services $accessibilityComponent; " +
+                "else " +
+                "settings put secure enabled_accessibility_services \"\$cur:$accessibilityComponent\"; " +
+                "fi ;; esac",
             "settings put secure accessibility_enabled 1",
 
-            // Notification listener — enable our listener so MYRA can read
-            // WhatsApp / SMS / Telegram notifications.
-            "settings put secure enabled_notification_listeners $notificationComponent",
+            // Notification listener — append same way.
+            "cur=$(settings get secure enabled_notification_listeners); " +
+                "case \"\$cur\" in *$notificationComponent*) ;; " +
+                "*) if [ -z \"\$cur\" ] || [ \"\$cur\" = \"null\" ]; then " +
+                "settings put secure enabled_notification_listeners $notificationComponent; " +
+                "else " +
+                "settings put secure enabled_notification_listeners \"\$cur:$notificationComponent\"; " +
+                "fi ;; esac",
 
             // Battery optimisation whitelist so wake word / call monitor
             // services keep running.
