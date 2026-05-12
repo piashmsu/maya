@@ -48,8 +48,8 @@ MYRA is a fully voice-driven Android assistant that *actually* talks back in a n
 
 | File | Size | Notes |
 |------|------|-------|
-| `app-debug.apk` | 7.2 MB | Installs as `com.myra.assistant.debug` — keeps your release install separate |
-| `app-release.apk` | 2.4 MB | R8-minified, signed with debug key (replace with your keystore for Play Store) |
+| `app-debug.apk` | 7.4 MB | Installs as `com.myra.assistant.debug` — keeps your release install separate |
+| `app-release.apk` | 2.5 MB | R8-minified, signed with debug key (replace with your keystore for Play Store) |
 
 ---
 
@@ -115,6 +115,32 @@ adb install myra-debug.apk
 | Foreground microphone service | ✅ | survives screen-off (with battery whitelist) |
 | Settings toggle | ✅ | Settings → Wake word switch |
 | Cooldown after trigger (5s) | ✅ | prevents re-trigger spam |
+
+### 🔊 Background Voice (v3.1.0)
+| Feature | Status | File |
+|---------|--------|------|
+| Voice session lives in a foreground service (survives activity teardown) | ✅ | `service/MyraVoiceService.kt` |
+| MYRA hears + responds from any screen (home, Settings, WhatsApp, lock) | ✅ | `MyraVoiceService` + activity binds |
+| Mic-typed foreground service so Android 14+ won't kill it | ✅ | `FOREGROUND_SERVICE_TYPE_MICROPHONE` |
+| Activity binding pattern (UI is a thin client) | ✅ | `MainActivity.startAndBindVoiceService` |
+| Mic suspended during ringing/active calls so caller's voice doesn't leak | ✅ | `MyraVoiceService.setMicSuspended` |
+| Chat history persisted from service (transcripts survive crashes) | ✅ | `data/ChatHistory.kt` |
+
+### 🔒 Device Admin (v3.1.0)
+| Feature | Status | File |
+|---------|--------|------|
+| Device-admin receiver with `force-lock` / `reset-password` policies | ✅ | `admin/MyraDeviceAdminReceiver.kt` + `res/xml/device_admin.xml` |
+| Silent root activation via `dpm set-active-admin` | ✅ | `data/RootSetup.kt` |
+| "Lock the phone" / "phone lock kar" voice command | ✅ | `CommandParser.lockScreenMatch` + `CommandType.LOCK_SCREEN` |
+| `DevicePolicyManager.lockNow()` execution | ✅ | `MainViewModel.lockScreen` |
+| Anti-uninstall (user must revoke admin first) | ✅ | inherent to active device-admin |
+
+### 📲 Direct SMS Send (v3.1.0)
+| Feature | Status | File |
+|---------|--------|------|
+| Real SMS send via `SmsManager.sendTextMessage` (no manual tap) | ✅ | `MainViewModel.trySendSmsDirect` |
+| Multi-part SMS handling (`divideMessage` + `sendMultipartTextMessage`) | ✅ | same |
+| Graceful fallback to draft compose if direct send fails | ✅ | `MainViewModel.sendSms` |
 
 ### 🪐 Always-on Access (v3.0.0)
 | Feature | Status | File |
@@ -297,6 +323,15 @@ CI: every push to `main` and every PR runs `.github/workflows/build-apk.yml` and
 ## 📜 Version History / Changelog
 
 > Every fix and feature update gets a row here so the user (or any AI agent picking this up later) can see exactly what's changed at a glance.
+
+### v3.1.0 — 🔊 Background voice + SMS + Device Admin *(2026-05-13)*
+**Critical baseline fix.** v3.0.0 voice session lived inside `MainActivity`, which meant MYRA went silent the second the user left the app — home screen, Settings, WhatsApp, lock screen, anywhere except her own UI. Reported by the user as "shudhu apps home screen kotha bole". This release moves the live session into a foreground service so MYRA can hear and respond from any screen.
+- 🔊 **`MyraVoiceService`** (`service/MyraVoiceService.kt`) — owns the `GeminiLiveClient` WebSocket + the `AudioEngine` mic/speaker pair. Started as a mic-typed foreground service (`FOREGROUND_SERVICE_TYPE_MICROPHONE` on Android 10+) so the system doesn't kill it when screen is off. Exposes a `Listener` interface for UI bindings; `MainActivity` registers as a listener and gets transcripts, amplitude, orb state — but the session survives activity teardown.
+- 🎛️ **Activity refactor** — `MainActivity` no longer instantiates `GeminiLiveClient` / `AudioEngine` directly. Binds to the service in `onCreate`, unbinds in `onDestroy` (service keeps running). `onPause` no longer mutes the mic. Wake word / Bluetooth gesture both call `MyraVoiceService.start()` before launching the activity so voice is up regardless.
+- 📱 **Direct SMS send** (`viewmodel/MainViewModel.kt#sendSms`) — when `SEND_SMS` is granted (root auto-setup grants it), MYRA now uses `SmsManager.sendTextMessage()` to actually send the message instead of just opening a draft. Multi-part messages use `divideMessage` + `sendMultipartTextMessage`. Fallback to draft compose if direct send throws.
+- 🔒 **Device Admin support** (`admin/MyraDeviceAdminReceiver.kt` + `res/xml/device_admin.xml`) — new component that grants MYRA the `force-lock` / `reset-password` / `disable-keyguard-features` policies. `RootSetup` silently activates it via `dpm set-active-admin`. New `CommandType.LOCK_SCREEN` parsed from "lock the phone" / "phone lock kar" / "screen lock koro" → `MainViewModel.lockScreen()` → `DevicePolicyManager.lockNow()`. Anti-uninstall (user must revoke admin before uninstalling).
+- 🎙️ **In-call mic suspension** — during a ringing call the service stops forwarding mic frames to Gemini (`setMicSuspended(true)`) so the caller's voice doesn't leak into the live session. Resumed on call end.
+- `versionCode 5` / `versionName "3.1.0"`
 
 ### v3.0.0 — 🅱️ Phase 3 "Always-on MYRA" *(2026-05-13)*
 Five features that make MYRA reachable from anywhere on the phone:

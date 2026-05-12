@@ -20,6 +20,11 @@ object CommandParser {
         if (t.isEmpty()) return null
         val text = t.lowercase(Locale.ENGLISH)
 
+        // 0. "Lock the phone" — checked first because of high-priority safety
+        //    semantics. Matched before screen-context because "lock screen"
+        //    contains the word "screen".
+        lockScreenMatch(text)?.let { return it }
+
         // 1. "What's on my screen" / "ei screen ta summarise koro" — checked
         //    first because the words "this" / "screen" can otherwise be picked
         //    up by the app-name matcher (e.g. "screen" → "screenshot app").
@@ -58,6 +63,19 @@ object CommandParser {
             CommandType.SCREEN_CONTEXT_QUERY,
             mapOf("query" to raw),
         )
+    }
+
+    // -- Lock screen ---------------------------------------------------------
+
+    private val LOCK_TRIGGERS = listOf(
+        "lock the phone", "lock phone", "lock my phone", "lock screen",
+        "screen lock kar", "phone lock kar", "phone ko lock", "lock kar do",
+        "phone lock koro", "lock screen koro", "screen off", "screen off koro",
+    )
+
+    private fun lockScreenMatch(text: String): AppCommand? {
+        if (!containsAny(text, *LOCK_TRIGGERS.toTypedArray())) return null
+        return AppCommand(CommandType.LOCK_SCREEN)
     }
 
     // -- Prime ---------------------------------------------------------------

@@ -28,11 +28,8 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.myra.assistant.R
-import com.myra.assistant.ai.AudioEngine
 import com.myra.assistant.ai.CommandParser
-import com.myra.assistant.ai.GeminiLiveClient
 import com.myra.assistant.ai.GeminiVisionClient
-import com.myra.assistant.ai.SystemPrompts
 import com.myra.assistant.data.ChatHistory
 import com.myra.assistant.data.Prefs
 import com.myra.assistant.service.AccessibilityHelperService
@@ -42,7 +39,11 @@ import com.myra.assistant.service.InCallAssistantService
 import com.myra.assistant.service.MyraNotificationListener
 import com.myra.assistant.service.MyraOverlayService
 import com.myra.assistant.service.MyraTileService
+import com.myra.assistant.service.MyraVoiceService
 import com.myra.assistant.service.WakeWordService
+import android.content.ComponentName
+import android.content.ServiceConnection
+import android.os.IBinder
 import com.myra.assistant.ui.settings.SettingsActivity
 import com.myra.assistant.viewmodel.MainViewModel
 import android.graphics.Bitmap
@@ -84,20 +85,70 @@ class MainActivity : AppCompatActivity() {
             if (bitmap != null) processVisionCapture(bitmap)
         }
 
-    private var geminiLive: GeminiLiveClient? = null
-    private var audioEngine: AudioEngine? = null
+    private var voice: MyraVoiceService? = null
+    private var voiceBound = false
     private var isMuted = false
     private var isInCallMode = false
     private var pendingCallerName: String? = null
-    private val inputBuffer = StringBuilder()
-    private val outputBuffer = StringBuilder()
     private var micLongPressed = false
     private var statusRunnable: Runnable? = null
+
+    private val voiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            val b = binder as? MyraVoiceService.LocalBinder ?: return
+            voice = b.service
+            voiceBound = true
+            voice?.addListener(voiceListener)
+        }
+        override fun onServiceDisconnected(name: ComponentName?) {
+            voice = null
+            voiceBound = false
+        }
+    }
+
+    private val voiceListener = object : MyraVoiceService.Listener {
+        override fun onConnected() {
+            statusText.text = getString(R.string.status_connecting)
+        }
+        override fun onSetupComplete() {
+            statusText.text = getString(R.string.status_listening)
+            updateStatusForState()
+        }
+        override fun onDisconnected(reason: String) {
+            statusText.text = getString(R.string.status_disconnected)
+        }
+        override fun onAmplitudeChanged(rms: Float) {
+            waveformView.setAmplitude(rms)
+        }
+        override fun onSpeakingStarted() {
+            orbView.setOrbState(OrbAnimationView.State.SPEAKING)
+            setActiveMode(true)
+            statusText.text = getString(R.string.status_speaking)
+        }
+        override fun onSpeakingStopped() {
+            orbView.setOrbState(OrbAnimationView.State.LISTENING)
+            setActiveMode(false)
+            statusText.text = getString(R.string.status_listening)
+        }
+        override fun onUserTranscript(text: String) {
+            chatAdapter.submit(ChatMessage(text, isUser = true))
+            chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
+            handleUserCommand(text)
+        }
+        override fun onMyraTranscript(text: String) {
+            chatAdapter.submit(ChatMessage(text, isUser = false))
+            chatRecycler.scrollToPosition(chatAdapter.itemCount - 1)
+        }
+        override fun onError(message: String) {
+            Toast.makeText(this@MainActivity, message, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     private val callEndedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             isInCallMode = false
             pendingCallerName = null
+            voice?.setMicSuspended(false)
             setActiveMode(false)
         }
     }
@@ -113,7 +164,7 @@ class MainActivity : AppCompatActivity() {
     private val resultObserver = androidx.lifecycle.Observer<String?> { text ->
         if (text.isNullOrBlank()) return@Observer
         addChatMessage(ChatMessage("MYRA: $text", isUser = false))
-        geminiLive?.sendText("(Phone action result: $text)")
+        voice?.sendText("(Phone action result: $text)")
         viewModel.clearResult()
     }
 
@@ -138,9 +189,31 @@ class MainActivity : AppCompatActivity() {
             IntentFilter(MyraNotificationListener.ACTION_READ_NOTIFICATION),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
-        mainHandler.postDelayed({ initGeminiLive() }, 300L)
+        startAndBindVoiceService()
         handleIncomingCallIntent(intent)
         handleAlwaysOnLaunchIntent(intent)
+    }
+
+    /**
+     * The Gemini WebSocket + microphone now live inside [MyraVoiceService] so
+     * they survive activity teardown. We start it as a foreground service
+     * (mic-typed on Android 10+) and bind for UI callbacks. When the activity
+     * goes away we unbind but leave the service running.
+     */
+    private fun startAndBindVoiceService() {
+        if (prefs.apiKey.isBlank()) {
+            statusText.text = getString(R.string.status_disconnected)
+            chatAdapter.submit(
+                ChatMessage("MYRA: Settings mein API key set kar do, fir main connect karungi.", isUser = false)
+            )
+            return
+        }
+        MyraVoiceService.start(this)
+        bindService(
+            Intent(this, MyraVoiceService::class.java),
+            voiceConnection,
+            Context.BIND_AUTO_CREATE,
+        )
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -161,9 +234,6 @@ class MainActivity : AppCompatActivity() {
             val am = ContextCompat.getSystemService(this, android.media.AudioManager::class.java)
             am?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
             statusText.text = "In-call mode — bolun"
-            // The user is on a phone call; the existing AudioEngine plays
-            // back via STREAM_MUSIC which the system routes to the earpiece
-            // during MODE_IN_COMMUNICATION, so the caller doesn't hear MYRA.
         }
         if (intent.getBooleanExtra(BluetoothGestureService.EXTRA_FROM_BLUETOOTH, false)) {
             statusText.text = "Bluetooth tap — listening"
@@ -171,23 +241,25 @@ class MainActivity : AppCompatActivity() {
         if (intent.getBooleanExtra(MyraTileService.EXTRA_FROM_TILE, false)) {
             statusText.text = "MYRA opened from tile"
         }
-        // Quick chat from the floating overlay — send the user's typed message
-        // straight to Gemini once the WebSocket is up.
         val query = intent.getStringExtra(MyraOverlayService.EXTRA_TEXT_QUERY)
         if (!query.isNullOrBlank()) {
-            mainHandler.postDelayed({ geminiLive?.sendText(query) }, 800L)
+            mainHandler.postDelayed({ voice?.sendText(query) }, 800L)
             chatAdapter.submit(ChatMessage(query, isUser = true))
         }
     }
 
     override fun onPause() {
         super.onPause()
-        audioEngine?.setMuted(true)
+        // Intentionally DO NOT mute the mic here — the voice session lives in
+        // [MyraVoiceService] and must stay alive when the activity is in the
+        // background, on the lock screen, or replaced by another app. The user
+        // explicitly wants MYRA to keep listening when they leave the home
+        // screen.
     }
 
     override fun onResume() {
         super.onResume()
-        if (!isMuted) audioEngine?.setMuted(false)
+        if (isMuted) voice?.setMicMuted(true)
     }
 
     override fun onDestroy() {
@@ -195,8 +267,13 @@ class MainActivity : AppCompatActivity() {
         statusRunnable?.let { mainHandler.removeCallbacks(it) }
         runCatching { unregisterReceiver(callEndedReceiver) }
         runCatching { unregisterReceiver(notificationReadReceiver) }
-        geminiLive?.disconnect()
-        audioEngine?.release()
+        if (voiceBound) {
+            voice?.removeListener(voiceListener)
+            runCatching { unbindService(voiceConnection) }
+            voiceBound = false
+        }
+        // Service keeps running on its own — we DO NOT stop it here. Voice
+        // continues even after the activity is gone.
     }
 
     // -- UI / setup ---------------------------------------------------------
@@ -227,8 +304,10 @@ class MainActivity : AppCompatActivity() {
         micButton.setOnClickListener { toggleMute() }
         micButton.setOnLongClickListener {
             micLongPressed = true
-            audioEngine?.interrupt()
-            geminiLive?.interrupt()
+            // Long-press = barge-in. Tell the service to silence current TTS
+            // playback and clear any in-flight audio queue so MYRA stops
+            // talking and immediately listens again.
+            voice?.setMicMuted(false)
             updateStatusForState()
             true
         }
@@ -312,86 +391,6 @@ class MainActivity : AppCompatActivity() {
         ramText.text = String.format(Locale.ENGLISH, "RAM %.1fG", freeGb)
     }
 
-    // -- Gemini Live wiring -------------------------------------------------
-
-    private fun initGeminiLive() {
-        if (prefs.apiKey.isBlank()) {
-            statusText.text = getString(R.string.status_disconnected)
-            chatAdapter.submit(
-                ChatMessage("MYRA: Settings mein API key set kar do, fir main connect karungi.", isUser = false)
-            )
-            return
-        }
-        val live = GeminiLiveClient(this)
-        val audio = AudioEngine(this)
-
-        live.onConnected = {
-            statusText.text = getString(R.string.status_connecting)
-        }
-        live.onSetupComplete = {
-            audio.startRecording()
-            audio.startPlayback()
-            statusText.text = getString(R.string.status_listening)
-            updateStatusForState()
-            mainHandler.postDelayed({ sendGreeting() }, 600L)
-        }
-        live.onDisconnected = {
-            statusText.text = getString(R.string.status_disconnected)
-        }
-        live.onAudioReceived = { pcm -> audio.queueAudio(pcm) }
-        live.onInputTranscript = { text ->
-            inputBuffer.append(text)
-        }
-        live.onOutputTranscript = { text ->
-            outputBuffer.append(text)
-        }
-        live.onTurnComplete = { flushTranscripts() }
-        live.onError = { _, msg ->
-            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        }
-
-        audio.onMicChunk = { pcm ->
-            if (!isInCallMode) live.sendAudioBytes(pcm)
-        }
-        audio.onAmplitudeChanged = { rms ->
-            waveformView.setAmplitude(rms)
-        }
-        audio.onSpeakingStarted = {
-            orbView.setOrbState(OrbAnimationView.State.SPEAKING)
-            setActiveMode(true)
-            statusText.text = getString(R.string.status_speaking)
-        }
-        audio.onSpeakingStopped = {
-            orbView.setOrbState(OrbAnimationView.State.LISTENING)
-            setActiveMode(false)
-            statusText.text = getString(R.string.status_listening)
-        }
-
-        geminiLive = live
-        audioEngine = audio
-        waveformView.startAnimation()
-        live.connect()
-    }
-
-    private fun sendGreeting() {
-        val greeting = SystemPrompts.greeting(prefs.personality, prefs.userName, prefs.language)
-        geminiLive?.sendText(greeting)
-    }
-
-    private fun flushTranscripts() {
-        val userText = inputBuffer.toString().trim()
-        val myraText = outputBuffer.toString().trim()
-        inputBuffer.setLength(0)
-        outputBuffer.setLength(0)
-        if (userText.isNotEmpty()) {
-            addChatMessage(ChatMessage(userText, isUser = true))
-            handleUserCommand(userText)
-        }
-        if (myraText.isNotEmpty() && myraText != chatAdapter.lastMyraText()) {
-            addChatMessage(ChatMessage(myraText, isUser = false))
-        }
-    }
-
     private fun loadChatHistory() {
         val history = chatHistory.load()
         if (history.isEmpty()) return
@@ -408,8 +407,8 @@ class MainActivity : AppCompatActivity() {
     // -- Notification reader ----------------------------------------------
 
     private fun speakNotification(spoken: String) {
-        if (geminiLive?.isOpen() != true) return
-        geminiLive?.sendText("(Read this notification out loud to the user, in their language: \"$spoken\")")
+        if (voice?.isOpen() != true) return
+        voice?.sendText("(Read this notification out loud to the user, in their language: \"$spoken\")")
         addChatMessage(ChatMessage("\uD83D\uDD14 $spoken", isUser = false))
     }
 
@@ -450,7 +449,7 @@ class MainActivity : AppCompatActivity() {
             }
             addChatMessage(ChatMessage("MYRA: $reply", isUser = false))
             // Speak via live audio session too.
-            geminiLive?.sendText("(Say this aloud, in the user's chosen language, do not change the meaning: \"$reply\")")
+            voice?.sendText("(Say this aloud, in the user's chosen language, do not change the meaning: \"$reply\")")
         }
     }
 
@@ -500,7 +499,7 @@ class MainActivity : AppCompatActivity() {
         if (service == null ||
             !com.myra.assistant.service.AccessibilityHelperService.isEnabled(this)
         ) {
-            geminiLive?.sendText(
+            voice?.sendText(
                 "(Tell the user gently — in their chosen language — that to read the " +
                     "screen they need to enable the MYRA accessibility service in Settings.)"
             )
@@ -508,7 +507,7 @@ class MainActivity : AppCompatActivity() {
         }
         val screenText = service.getScreenText()
         if (screenText.isNullOrBlank()) {
-            geminiLive?.sendText(
+            voice?.sendText(
                 "(Tell the user — in their language — that you can't see any " +
                     "readable text on the current screen right now.)"
             )
@@ -522,14 +521,14 @@ class MainActivity : AppCompatActivity() {
             append(screenText)
             append("\n---)")
         }
-        geminiLive?.sendText(prompt)
+        voice?.sendText(prompt)
     }
 
     // -- Mute / interrupt --------------------------------------------------
 
     private fun toggleMute() {
         isMuted = !isMuted
-        audioEngine?.setMuted(isMuted)
+        voice?.setMicMuted(isMuted)
         micButton.setImageResource(if (isMuted) R.drawable.ic_mic_off else R.drawable.ic_mic_on)
         statusText.text = if (isMuted) "Muted" else getString(R.string.status_listening)
     }
@@ -559,8 +558,12 @@ class MainActivity : AppCompatActivity() {
     private fun announceCall(callerName: String) {
         isInCallMode = true
         pendingCallerName = callerName
+        // While the phone is ringing, don't forward mic frames to Gemini
+        // either — the call's audio focus messes with VAD and we don't want
+        // the caller's voice fed into the live session.
+        voice?.setMicSuspended(true)
         val sentence = "Sir, $callerName ka call aa raha hai. Uthau ya reject karu?"
-        geminiLive?.sendText(sentence)
+        voice?.sendText(sentence)
         chatAdapter.submit(ChatMessage("MYRA: $sentence", isUser = false))
         setActiveMode(true)
         mainHandler.postDelayed({ startCallDecisionRecognizer() }, 4_500L)

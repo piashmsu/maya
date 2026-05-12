@@ -21,6 +21,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import android.app.admin.DevicePolicyManager
+import com.myra.assistant.admin.MyraDeviceAdminReceiver
 import com.myra.assistant.data.Prefs
 import com.myra.assistant.data.PrimeContact
 import com.myra.assistant.model.AppCommand
@@ -78,6 +80,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     CommandType.WIFI_OFF -> setWifi(false)
                     CommandType.BLUETOOTH_ON -> setBluetooth(true)
                     CommandType.BLUETOOTH_OFF -> setBluetooth(false)
+                    CommandType.LOCK_SCREEN -> lockScreen()
                     else -> postResult("I'm not sure how to do that yet.")
                 }
             } catch (t: Throwable) {
@@ -193,12 +196,47 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun sendSms(target: String, message: String) {
         val number = resolveTargetNumber(target) ?: target
+        // v3.1: if SEND_SMS is granted (root auto-setup does this), actually
+        // send the message via SmsManager instead of just opening a draft.
+        // This is what the user expects when they say "MYRA, Priya ke 'aa
+        // rahi hoon' SMS karo" \u2014 the message should leave the phone, not
+        // require another manual tap.
+        val canSend = ContextCompat.checkSelfPermission(ctx, Manifest.permission.SEND_SMS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (canSend && message.isNotBlank() && number.isNotBlank()) {
+            val sent = trySendSmsDirect(number, message)
+            if (sent) {
+                postResult("SMS bhej diya ${target.ifEmpty { number }} ko.")
+                return
+            }
+        }
+        // Fallback: open the system compose UI pre-filled.
         val uri = Uri.parse("smsto:$number")
         val intent = Intent(Intent.ACTION_SENDTO, uri)
             .putExtra("sms_body", message)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ctx.startActivity(intent)
         postResult("SMS draft khol diya.")
+    }
+
+    private fun trySendSmsDirect(number: String, message: String): Boolean {
+        return try {
+            val sm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ctx.getSystemService(android.telephony.SmsManager::class.java)
+            } else {
+                @Suppress("DEPRECATION") android.telephony.SmsManager.getDefault()
+            }
+            val parts = sm.divideMessage(message)
+            if (parts.size > 1) {
+                sm.sendMultipartTextMessage(number, null, parts, null, null)
+            } else {
+                sm.sendTextMessage(number, null, message, null, null)
+            }
+            true
+        } catch (t: Throwable) {
+            Log.w(TAG, "Direct SMS send failed", t)
+            false
+        }
     }
 
     private fun whatsappMessage(target: String, message: String) {
@@ -328,6 +366,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         @Suppress("DEPRECATION")
         if (on) adapter.enable() else adapter.disable()
         postResult(if (on) "Bluetooth on." else "Bluetooth off.")
+    }
+
+    // -- Device admin -------------------------------------------------------
+
+    private fun lockScreen() {
+        val dpm = ContextCompat.getSystemService(ctx, DevicePolicyManager::class.java)
+        val admin = MyraDeviceAdminReceiver.component(ctx)
+        if (dpm == null || !dpm.isAdminActive(admin)) {
+            postResult("Pehle Device Admin enable karo (Settings \u2192 Security).")
+            return
+        }
+        try {
+            dpm.lockNow()
+            postResult("Phone lock kar diya.")
+        } catch (t: Throwable) {
+            Log.w(TAG, "lockNow failed", t)
+            postResult("Lock fail ho gaya \u2014 admin permission check karo.")
+        }
     }
 
     // -- Helpers ------------------------------------------------------------

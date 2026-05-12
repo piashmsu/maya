@@ -35,4 +35,7 @@ object CommandType {
 
     /** User wants MYRA to look at whatever is on screen right now. */
     const val SCREEN_CONTEXT_QUERY = "SCREEN_CONTEXT_QUERY"
+
+    /** "MYRA lock the phone" \u2014 requires DeviceAdmin to be active. */
+    const val LOCK_SCREEN = "LOCK_SCREEN"
 }
