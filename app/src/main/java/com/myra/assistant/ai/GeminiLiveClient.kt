@@ -201,13 +201,18 @@ class GeminiLiveClient(context: Context) {
     }
 
     private fun sendSetup(ws: WebSocket) {
-        val speechConfig = JSONObject().put(
-            "voice_config",
-            JSONObject().put(
-                "prebuilt_voice_config",
-                JSONObject().put("voice_name", prefs.voice)
+        val speechConfig = JSONObject().apply {
+            put(
+                "voice_config",
+                JSONObject().put(
+                    "prebuilt_voice_config",
+                    JSONObject().put("voice_name", prefs.voice),
+                ),
             )
-        )
+            // Hint the model toward the user's chosen language so the native
+            // audio model produces a Bengali / Hindi / English voice.
+            put("language_code", SystemPrompts.bcp47(prefs.language))
+        }
         val generationConfig = JSONObject().apply {
             put("response_modalities", JSONArray().put("AUDIO"))
             put("speech_config", speechConfig)
@@ -216,8 +221,11 @@ class GeminiLiveClient(context: Context) {
         val systemInstruction = JSONObject().put(
             "parts",
             JSONArray().put(
-                JSONObject().put("text", SystemPrompts.build(prefs.personality, prefs.userName))
-            )
+                JSONObject().put(
+                    "text",
+                    SystemPrompts.build(prefs.personality, prefs.userName, prefs.language),
+                ),
+            ),
         )
         val setup = JSONObject().apply {
             put("model", prefs.model)

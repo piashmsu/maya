@@ -33,6 +33,18 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_VOICE, DEFAULT_VOICE) ?: DEFAULT_VOICE
         set(v) = sp.edit().putString(KEY_VOICE, v).apply()
 
+    var language: String
+        get() = sp.getString(KEY_LANGUAGE, DEFAULT_LANGUAGE) ?: DEFAULT_LANGUAGE
+        set(v) = sp.edit().putString(KEY_LANGUAGE, v).apply()
+
+    var wakeWordEnabled: Boolean
+        get() = sp.getBoolean(KEY_WAKE_WORD, false)
+        set(v) = sp.edit().putBoolean(KEY_WAKE_WORD, v).apply()
+
+    var notificationReaderEnabled: Boolean
+        get() = sp.getBoolean(KEY_NOTIF_READER, false)
+        set(v) = sp.edit().putBoolean(KEY_NOTIF_READER, v).apply()
+
     fun getPrimeContacts(): List<PrimeContact> {
         val json = sp.getString(KEY_PRIME_JSON, null)
         if (json.isNullOrBlank()) {
@@ -71,6 +83,9 @@ class Prefs(context: Context) {
         const val KEY_MODEL = "gemini_model"
         const val KEY_VOICE = "gemini_voice"
         const val KEY_PRIME_JSON = "prime_contacts_json"
+        const val KEY_LANGUAGE = "language_mode"
+        const val KEY_WAKE_WORD = "wake_word_enabled"
+        const val KEY_NOTIF_READER = "notif_reader_enabled"
 
         const val LEGACY_NAME = "prime_name"
         const val LEGACY_NUMBER = "prime_number"
@@ -78,6 +93,20 @@ class Prefs(context: Context) {
         const val PERSONALITY_GF = "GF"
         const val PERSONALITY_PRO = "PRO"
         const val PERSONALITY_ASSISTANT = "ASSISTANT"
+
+        const val LANG_HINGLISH = "HINGLISH"
+        const val LANG_ENGLISH = "ENGLISH"
+        const val LANG_BENGALI = "BENGALI"
+        const val LANG_BENGLISH = "BENGLISH"
+
+        const val DEFAULT_LANGUAGE = LANG_HINGLISH
+
+        val LANGUAGES = listOf(
+            LANG_HINGLISH to "Hinglish (Hindi + English)",
+            LANG_BENGALI to "বাংলা (Bengali)",
+            LANG_BENGLISH to "Benglish (Bengali + English)",
+            LANG_ENGLISH to "English",
+        )
 
         const val DEFAULT_MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
         const val DEFAULT_VOICE = "Aoede"
