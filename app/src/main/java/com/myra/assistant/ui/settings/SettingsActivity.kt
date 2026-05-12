@@ -24,6 +24,7 @@ import com.myra.assistant.data.Prefs
 import com.myra.assistant.data.PrimeContact
 import com.myra.assistant.data.RootSetup
 import com.myra.assistant.service.AccessibilityHelperService
+import com.myra.assistant.service.BluetoothGestureService
 import com.myra.assistant.service.WakeWordService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +51,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var saveButton: Button
     private lateinit var wakeWordSwitch: SwitchMaterial
     private lateinit var notifReaderSwitch: SwitchMaterial
+    private lateinit var bluetoothGestureSwitch: SwitchMaterial
+    private lateinit var inCallSwitch: SwitchMaterial
     private lateinit var clearHistoryButton: Button
     private lateinit var autoSetupButton: Button
     private lateinit var autoSetupResult: TextView
@@ -82,6 +85,8 @@ class SettingsActivity : AppCompatActivity() {
         saveButton = findViewById(R.id.saveButton)
         wakeWordSwitch = findViewById(R.id.wakeWordSwitch)
         notifReaderSwitch = findViewById(R.id.notifReaderSwitch)
+        bluetoothGestureSwitch = findViewById(R.id.bluetoothGestureSwitch)
+        inCallSwitch = findViewById(R.id.inCallSwitch)
         clearHistoryButton = findViewById(R.id.clearHistoryButton)
         autoSetupButton = findViewById(R.id.autoSetupButton)
         autoSetupResult = findViewById(R.id.autoSetupResult)
@@ -138,6 +143,8 @@ class SettingsActivity : AppCompatActivity() {
 
         wakeWordSwitch.isChecked = prefs.wakeWordEnabled
         notifReaderSwitch.isChecked = prefs.notificationReaderEnabled
+        bluetoothGestureSwitch.isChecked = prefs.bluetoothGestureEnabled
+        inCallSwitch.isChecked = prefs.inCallAssistantEnabled
 
         primeAdapter.submit(prefs.getPrimeContacts())
     }
@@ -219,6 +226,8 @@ class SettingsActivity : AppCompatActivity() {
         }
         prefs.wakeWordEnabled = wakeWordSwitch.isChecked
         prefs.notificationReaderEnabled = notifReaderSwitch.isChecked
+        prefs.bluetoothGestureEnabled = bluetoothGestureSwitch.isChecked
+        prefs.inCallAssistantEnabled = inCallSwitch.isChecked
         prefs.setPrimeContacts(primeAdapter.current())
 
         // React to wake-word toggle immediately so the user gets feedback
@@ -227,6 +236,13 @@ class SettingsActivity : AppCompatActivity() {
             WakeWordService.start(this)
         } else if (!prefs.wakeWordEnabled && WakeWordService.isRunning) {
             WakeWordService.stop(this)
+        }
+        // Bluetooth gesture service is also toggled live so the user can
+        // double-tap their earbuds without having to restart MYRA.
+        if (prefs.bluetoothGestureEnabled && !BluetoothGestureService.isRunning) {
+            BluetoothGestureService.start(this)
+        } else if (!prefs.bluetoothGestureEnabled && BluetoothGestureService.isRunning) {
+            BluetoothGestureService.stop(this)
         }
 
         Toast.makeText(this, getString(R.string.settings_save_hint), Toast.LENGTH_LONG).show()

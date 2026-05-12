@@ -45,6 +45,16 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_NOTIF_READER, false)
         set(v) = sp.edit().putBoolean(KEY_NOTIF_READER, v).apply()
 
+    /** v3 "Always-on" \u2014 listen for Bluetooth play/pause double-tap. */
+    var bluetoothGestureEnabled: Boolean
+        get() = sp.getBoolean(KEY_BT_GESTURE, false)
+        set(v) = sp.edit().putBoolean(KEY_BT_GESTURE, v).apply()
+
+    /** v3 "Always-on" \u2014 in-call wake word ("MYRA help"). */
+    var inCallAssistantEnabled: Boolean
+        get() = sp.getBoolean(KEY_IN_CALL, false)
+        set(v) = sp.edit().putBoolean(KEY_IN_CALL, v).apply()
+
     fun getPrimeContacts(): List<PrimeContact> {
         val json = sp.getString(KEY_PRIME_JSON, null)
         if (json.isNullOrBlank()) {
@@ -86,6 +96,8 @@ class Prefs(context: Context) {
         const val KEY_LANGUAGE = "language_mode"
         const val KEY_WAKE_WORD = "wake_word_enabled"
         const val KEY_NOTIF_READER = "notif_reader_enabled"
+        const val KEY_BT_GESTURE = "bt_gesture_enabled"
+        const val KEY_IN_CALL = "in_call_assistant_enabled"
 
         const val LEGACY_NAME = "prime_name"
         const val LEGACY_NUMBER = "prime_number"

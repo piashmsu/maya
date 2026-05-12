@@ -32,4 +32,7 @@ object CommandType {
     const val WIFI_OFF = "WIFI_OFF"
     const val BLUETOOTH_ON = "BLUETOOTH_ON"
     const val BLUETOOTH_OFF = "BLUETOOTH_OFF"
+
+    /** User wants MYRA to look at whatever is on screen right now. */
+    const val SCREEN_CONTEXT_QUERY = "SCREEN_CONTEXT_QUERY"
 }

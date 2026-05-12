@@ -36,9 +36,12 @@ import com.myra.assistant.ai.SystemPrompts
 import com.myra.assistant.data.ChatHistory
 import com.myra.assistant.data.Prefs
 import com.myra.assistant.service.AccessibilityHelperService
+import com.myra.assistant.service.BluetoothGestureService
 import com.myra.assistant.service.CallMonitorService
+import com.myra.assistant.service.InCallAssistantService
 import com.myra.assistant.service.MyraNotificationListener
 import com.myra.assistant.service.MyraOverlayService
+import com.myra.assistant.service.MyraTileService
 import com.myra.assistant.service.WakeWordService
 import com.myra.assistant.ui.settings.SettingsActivity
 import com.myra.assistant.viewmodel.MainViewModel
@@ -137,11 +140,44 @@ class MainActivity : AppCompatActivity() {
         )
         mainHandler.postDelayed({ initGeminiLive() }, 300L)
         handleIncomingCallIntent(intent)
+        handleAlwaysOnLaunchIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIncomingCallIntent(intent)
+        handleAlwaysOnLaunchIntent(intent)
+    }
+
+    /**
+     * Routes "always-on" launch sources (QS tile / Bluetooth double-tap /
+     * in-call "MYRA help") into the right starting state. For the in-call
+     * variant we also switch audio output to STREAM_VOICE_CALL so MYRA's
+     * reply only goes into the user's earpiece, not back to the caller.
+     */
+    private fun handleAlwaysOnLaunchIntent(intent: Intent?) {
+        intent ?: return
+        if (intent.getBooleanExtra(InCallAssistantService.EXTRA_FROM_IN_CALL, false)) {
+            val am = ContextCompat.getSystemService(this, android.media.AudioManager::class.java)
+            am?.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+            statusText.text = "In-call mode — bolun"
+            // The user is on a phone call; the existing AudioEngine plays
+            // back via STREAM_MUSIC which the system routes to the earpiece
+            // during MODE_IN_COMMUNICATION, so the caller doesn't hear MYRA.
+        }
+        if (intent.getBooleanExtra(BluetoothGestureService.EXTRA_FROM_BLUETOOTH, false)) {
+            statusText.text = "Bluetooth tap — listening"
+        }
+        if (intent.getBooleanExtra(MyraTileService.EXTRA_FROM_TILE, false)) {
+            statusText.text = "MYRA opened from tile"
+        }
+        // Quick chat from the floating overlay — send the user's typed message
+        // straight to Gemini once the WebSocket is up.
+        val query = intent.getStringExtra(MyraOverlayService.EXTRA_TEXT_QUERY)
+        if (!query.isNullOrBlank()) {
+            mainHandler.postDelayed({ geminiLive?.sendText(query) }, 800L)
+            chatAdapter.submit(ChatMessage(query, isUser = true))
+        }
     }
 
     override fun onPause() {
@@ -238,6 +274,16 @@ class MainActivity : AppCompatActivity() {
         CallMonitorService.start(this)
         if (prefs.wakeWordEnabled && !WakeWordService.isRunning) {
             WakeWordService.start(this)
+        }
+        // v3 "Always-on" services — only start the ones the user opted in to.
+        if (prefs.bluetoothGestureEnabled && !BluetoothGestureService.isRunning) {
+            BluetoothGestureService.start(this)
+        }
+        // The in-call assistant is gated by CallMonitorService when OFFHOOK
+        // fires, but we proactively stop a stale instance if the toggle was
+        // turned off since last launch.
+        if (!prefs.inCallAssistantEnabled && InCallAssistantService.isRunning) {
+            InCallAssistantService.stop(this)
         }
     }
 
@@ -434,7 +480,49 @@ class MainActivity : AppCompatActivity() {
                 return
             }
         }
-        CommandParser.parse(transcript)?.let { viewModel.execute(it) }
+        CommandParser.parse(transcript)?.let { command ->
+            if (command.type == com.myra.assistant.model.CommandType.SCREEN_CONTEXT_QUERY) {
+                handleScreenContextQuery(command.paramOrEmpty("query"))
+            } else {
+                viewModel.execute(command)
+            }
+        }
+    }
+
+    /**
+     * "What's on this screen", "ei screen er content summarise koro" — pull
+     * whatever text is on the foreground window via the accessibility service
+     * and forward it to Gemini along with the user's question. If accessibility
+     * isn't enabled we fall back to an apologetic spoken reply.
+     */
+    private fun handleScreenContextQuery(rawQuery: String) {
+        val service = com.myra.assistant.service.AccessibilityHelperService.instance
+        if (service == null ||
+            !com.myra.assistant.service.AccessibilityHelperService.isEnabled(this)
+        ) {
+            geminiLive?.sendText(
+                "(Tell the user gently — in their chosen language — that to read the " +
+                    "screen they need to enable the MYRA accessibility service in Settings.)"
+            )
+            return
+        }
+        val screenText = service.getScreenText()
+        if (screenText.isNullOrBlank()) {
+            geminiLive?.sendText(
+                "(Tell the user — in their language — that you can't see any " +
+                    "readable text on the current screen right now.)"
+            )
+            return
+        }
+        val q = rawQuery.ifBlank { "Summarize what is on the screen." }
+        val prompt = buildString {
+            append("(The user is looking at a screen on their phone and asked: \"")
+            append(q)
+            append("\".\n\nHere is the text currently visible on that screen — use it to answer in their language, conversationally and concisely:\n\n---\n")
+            append(screenText)
+            append("\n---)")
+        }
+        geminiLive?.sendText(prompt)
     }
 
     // -- Mute / interrupt --------------------------------------------------

@@ -116,6 +116,22 @@ adb install myra-debug.apk
 | Settings toggle | ✅ | Settings → Wake word switch |
 | Cooldown after trigger (5s) | ✅ | prevents re-trigger spam |
 
+### 🪐 Always-on Access (v3.0.0)
+| Feature | Status | File |
+|---------|--------|------|
+| Quick Settings tile (notification shade → tile) | ✅ | `service/MyraTileService.kt` |
+| Tile reflects wake-word state (ACTIVE / INACTIVE) | ✅ | `MyraTileService.refreshState` |
+| Floating chat-head bubble (tap to expand mini-chat) | ✅ | `service/MyraOverlayService.kt` + `res/layout/overlay_orb.xml` |
+| Bubble quick-text → opens MYRA pre-loaded with query | ✅ | `MyraOverlayService.openMainWithQuery` |
+| Bluetooth play/pause double-tap → wake MYRA | ✅ | `service/BluetoothGestureService.kt` |
+| `MediaSessionCompat` priority for key delivery | ✅ | `BluetoothGestureService.setupMediaSession` |
+| In-call "MYRA help" wake phrase | ✅ | `service/InCallAssistantService.kt` |
+| `MODE_IN_COMMUNICATION` for whispered earpiece reply | ✅ | `MainActivity.handleAlwaysOnLaunchIntent` |
+| Auto-start in-call listener on `CALL_STATE_OFFHOOK` | ✅ | `CallMonitorService` |
+| Screen context awareness ("what's on screen") | ✅ | `AccessibilityHelperService.getScreenText` |
+| Multi-language screen triggers (Hindi / Bangla / English) | ✅ | `CommandParser.SCREEN_TRIGGERS` |
+| Settings toggles (Bluetooth gesture, In-call MYRA) | ✅ | `Prefs.bluetoothGestureEnabled` / `inCallAssistantEnabled` |
+
 ### 📞 Phone Actions
 | Feature | Status | File |
 |---------|--------|------|
@@ -281,6 +297,21 @@ CI: every push to `main` and every PR runs `.github/workflows/build-apk.yml` and
 ## 📜 Version History / Changelog
 
 > Every fix and feature update gets a row here so the user (or any AI agent picking this up later) can see exactly what's changed at a glance.
+
+### v3.0.0 — 🅱️ Phase 3 "Always-on MYRA" *(2026-05-13)*
+Five features that make MYRA reachable from anywhere on the phone:
+- 🎛️ **Quick Settings tile** (`service/MyraTileService.kt`) — long-press the notification shade → drag MYRA into the tile rail → one tap opens her from any screen, even lock screen. Tile reflects "active" when wake word is on. API-level-gated `startActivityAndCollapse` (PendingIntent on 34+, legacy on 24–33).
+- 💭 **Chat-head bubble** (`service/MyraOverlayService.kt` + `res/layout/overlay_orb.xml`) — the floating orb now expands on tap into a quick-chat panel with a text input, "OPEN MYRA" and "SEND" buttons. Drag the orb anywhere; the panel shows below it. Drops `FLAG_NOT_FOCUSABLE` while expanded so the IME can deliver keystrokes; restores it on collapse so background touches pass through.
+- 🎧 **Bluetooth double-tap gesture** (`service/BluetoothGestureService.kt`) — holds an active `MediaSessionCompat` so play/pause / headset-hook / play / pause key events reach us. A double-tap within 600 ms launches MYRA. Released cleanly on destroy so it doesn't permanently steal media focus. Specialised foreground service (`FOREGROUND_SERVICE_TYPE_SPECIAL_USE` on 34+).
+- 📞 **In-call MYRA** (`service/InCallAssistantService.kt` + `service/CallMonitorService.kt`) — when `CALL_STATE_OFFHOOK` fires (and the user opted in), spins up a continuous `SpeechRecognizer` for the wake phrase "MYRA help" (or "MYRA translate" / "MYRA summarize"). On trigger sets `AudioManager.MODE_IN_COMMUNICATION` so MYRA's reply goes to the earpiece — the other caller doesn't hear her. Auto-stops on `CALL_STATE_IDLE`.
+- 👁️ **Screen context awareness** (`service/AccessibilityHelperService.kt` + `ai/CommandParser.kt`) — accessibility tree-walks the foreground app, collects all visible text + content descriptions (deduped, capped at 4000 chars). New `CommandType.SCREEN_CONTEXT_QUERY` is triggered by phrases like "what's on screen", "ei screen er content", "summarise this", "translate screen", "explain this page". `MainActivity.handleScreenContextQuery()` builds a Gemini prompt that includes the scraped text and asks MYRA to answer in the user's chosen language.
+
+**Plumbing:**
+- New `Prefs.bluetoothGestureEnabled` / `Prefs.inCallAssistantEnabled` toggles in Settings ("Features" card)
+- Added `androidx.media:media:1.7.0` for `MediaSessionCompat`
+- Manifest: `FOREGROUND_SERVICE_SPECIAL_USE` permission, three new `<service>` declarations, QS tile intent filter, in-call FG type `phoneCall|microphone`
+- `MainActivity.handleAlwaysOnLaunchIntent()` routes the four launch sources (tile / Bluetooth / in-call / overlay-text) into the right starting state
+- `versionCode 4` / `versionName "3.0.0"`
 
 ### v2.0.1 — 🩹 Root Setup Hotfix *(2026-05-12)*
 - **Fix:** `RootSetup.kt` now uses `context.packageName` instead of hardcoded `com.myra.assistant`. Debug builds (`com.myra.assistant.debug`) were silently failing to enable accessibility because the component string pointed at a non-existent package.

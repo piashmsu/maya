@@ -58,4 +58,17 @@
     <string name="settings_auto_setup_running">Running root setup\u2026</string>
     <string name="settings_auto_setup_no_root">su not available \u2014 root required for one-tap setup.</string>
     <string name="vision_capture">Capture photo for MYRA to describe</string>
+
+    <!-- v3 "Always-on" -->
+    <string name="notif_bluetooth_text">Bluetooth double-tap ready</string>
+    <string name="notif_in_call_text">Listening for \u201cMYRA help\u201d during this call</string>
+    <string name="overlay_quick_chat_title">QUICK CHAT</string>
+    <string name="overlay_quick_chat_hint">Type to ask MYRA\u2026</string>
+    <string name="overlay_quick_open_myra">OPEN MYRA</string>
+    <string name="overlay_quick_send">SEND</string>
+    <string name="qs_tile_label">MYRA</string>
+    <string name="settings_bluetooth_gesture">Bluetooth double-tap \u2192 wake MYRA</string>
+    <string name="settings_bluetooth_gesture_hint">Double-tap the play/pause on Bluetooth headphones to open MYRA.</string>
+    <string name="settings_in_call">In-call MYRA \u2014 \u201cMYRA help\u201d during a call</string>
+    <string name="settings_in_call_hint">Whispers replies to your earpiece. Caller doesn\u2019t hear MYRA.</string>
 </resources>

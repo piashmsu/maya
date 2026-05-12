@@ -57,6 +57,37 @@ class AccessibilityHelperService : AccessibilityService() {
     fun scrollDown(): Boolean = scroll(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
     fun scrollUp(): Boolean = scroll(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
 
+    /**
+     * Walks the current foreground window's view tree and concatenates every
+     * visible piece of text. Used by MYRA's "summarise this screen" / "what
+     * does it say" commands so Gemini can answer questions about whatever the
+     * user is looking at without needing OCR.
+     *
+     * Capped at [MAX_SCREEN_TEXT_CHARS] so we don't blow past Gemini's input
+     * limits or dump the entire page on a long scroll-feed.
+     */
+    fun getScreenText(): String? {
+        val root = rootInActiveWindow ?: return null
+        val builder = StringBuilder()
+        collectText(root, builder)
+        val out = builder.toString().trim()
+        return if (out.isEmpty()) null else out.take(MAX_SCREEN_TEXT_CHARS)
+    }
+
+    private fun collectText(node: AccessibilityNodeInfo?, sink: StringBuilder) {
+        node ?: return
+        if (sink.length >= MAX_SCREEN_TEXT_CHARS) return
+        val text = node.text?.toString()?.trim().orEmpty()
+        val desc = node.contentDescription?.toString()?.trim().orEmpty()
+        if (text.isNotEmpty()) sink.append(text).append('\n')
+        // contentDescription is often the same as text for clickable items, so
+        // only add it when it carries new information.
+        if (desc.isNotEmpty() && desc != text) sink.append(desc).append('\n')
+        for (i in 0 until node.childCount) {
+            collectText(node.getChild(i), sink)
+        }
+    }
+
     private fun scroll(action: Int): Boolean {
         val root = rootInActiveWindow ?: return false
         return scrollRecursive(root, action)
@@ -92,6 +123,8 @@ class AccessibilityHelperService : AccessibilityService() {
     }
 
     companion object {
+        private const val MAX_SCREEN_TEXT_CHARS = 4_000
+
         @Volatile
         var instance: AccessibilityHelperService? = null
             internal set

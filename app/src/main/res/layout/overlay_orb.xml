@@ -1,32 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="160dp"
-    android:layout_height="160dp"
-    android:background="@drawable/bg_overlay_orb">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
 
-    <com.myra.assistant.ui.main.OrbAnimationView
-        android:id="@+id/overlayOrb"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    <!-- The orb itself — always visible, draggable. -->
+    <FrameLayout
+        android:id="@+id/overlayHead"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:background="@drawable/bg_overlay_orb">
 
-    <TextView
-        android:layout_width="wrap_content"
+        <com.myra.assistant.ui.main.OrbAnimationView
+            android:id="@+id/overlayOrb"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.3"
+            android:textColor="@color/myra_red"
+            android:textSize="11sp"
+            android:text="@string/app_name" />
+
+        <ImageButton
+            android:id="@+id/overlayClose"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="4dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/close_overlay"
+            android:src="@drawable/ic_close" />
+    </FrameLayout>
+
+    <!-- Expandable quick-chat panel — tap the orb to toggle. -->
+    <LinearLayout
+        android:id="@+id/overlayChatPanel"
+        android:layout_width="260dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="10dp"
-        android:fontFamily="sans-serif-black"
-        android:letterSpacing="0.3"
-        android:textColor="@color/myra_red"
-        android:textSize="11sp"
-        android:text="@string/app_name" />
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_input_field"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
 
-    <ImageButton
-        android:id="@+id/overlayClose"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:layout_gravity="top|end"
-        android:layout_margin="4dp"
-        android:background="@android:color/transparent"
-        android:contentDescription="@string/close_overlay"
-        android:src="@drawable/ic_close" />
-</FrameLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-black"
+            android:letterSpacing="0.2"
+            android:text="@string/overlay_quick_chat_title"
+            android:textColor="@color/myra_red"
+            android:textSize="11sp" />
+
+        <EditText
+            android:id="@+id/overlayChatInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:background="@android:color/transparent"
+            android:hint="@string/overlay_quick_chat_hint"
+            android:imeOptions="actionSend"
+            android:importantForAutofill="no"
+            android:inputType="textShortMessage"
+            android:maxLines="2"
+            android:textColor="@color/myra_text_primary"
+            android:textColorHint="@color/myra_text_hint"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/overlayOpenMyra"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_save_button"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.2"
+                android:text="@string/overlay_quick_open_myra"
+                android:textColor="@color/myra_text_primary"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/overlayChatSend"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_save_button"
+                android:fontFamily="sans-serif-black"
+                android:letterSpacing="0.2"
+                android:text="@string/overlay_quick_send"
+                android:textColor="@color/myra_text_primary"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
